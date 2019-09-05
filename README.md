@@ -1,6 +1,6 @@
 # Grouped Pool [![badge](https://action-badges.now.sh/shadowmoose/PyGroupedPool)](https://github.com/shadowmoose/PyGroupedPool/actions)[![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
 
-*This is currently a proof-of-concept.*
+*This is currently a proof-of-concept. No release currently exists.*
 
 This project is a wrapper around the Python "Pool" implementation for multiprocessing.
 

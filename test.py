@@ -99,7 +99,7 @@ def fnc(num):
 def timeout():
 	time.sleep(60)
 	print('Timed out!')
-	os._exit(10000)
+	os._exit(103)
 
 
 timeout_thread = threading.Thread(target=timeout, daemon=True)

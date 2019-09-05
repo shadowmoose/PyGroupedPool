@@ -1,33 +1,88 @@
 from pool import PyPool
 import time
 import unittest
+import threading
+import os
 
 
-class TestDriverInstalls(unittest.TestCase):
+class TestPool(unittest.TestCase):
 
-	def test_pool(self):
+	def setUp(self):
+		# Create an example Pool, using a callback to print returned data & no error handling.
+		self.pool = PyPool(iteration=True, tags={
+			'test': 1,
+			'ignore': 1
+		}, callback=lambda r: print('Returned:', r, ', Pending:', self.pool.pending))
+
+	def test_async(self):
 		""" Concurrency should properly work """
 		start = time.time()
-		# Create an example Pool, using a callback to print returned data & no error handling.
-		pool = PyPool(tags={
-			'test': 1,
-			'ignored_pool': 5
-		}, callback=lambda r: print('Returned:', r, ', Pending:', pool.pending))
 
-		print(pool)  # Display the current Pool config.
+		self.pool.adjust('test2', 10)
+		self.pool.ingest([2, 2, 2, 2, 2, 2, 2, 2, 2, 2], 'test2', time.sleep, [])
 
-		pool.adjust(None, 10)  # Adjust the "generic" pool size to fit all the upcoming threads, to run them concurrently.
-		pool.adjust(None, 2)
-		pool.adjust(None, 12)
-
-		pool.ingest([5, 5, 5, 5, 5], 'test', time.sleep, [])
-
-		print('Async Ingesting started... Awaiting.', pool)  # This will display before ingesting is done.
-
-		pool.join()  # Wait for all ingesting & subprocess running to be complete.
+		self.pool.join()  # Wait for all ingesting & subprocess running to be complete.
 		# Should take ~5 seconds, since they should all run at once.
 
 		self.assertLess(time.time() - start, 15, 'Took longer than expected to run test - concurrency may be broken')
+
+	def test_adjust(self):
+		""" Adjust should properly add/remove generic slots """
+		pool = self.pool
+		pool.adjust('test', 10)
+		pool.adjust(None, 0)
+
+		pool.adjust('test', 5, use_general_slots=True)
+		self.assertEqual(pool.get_tags()['test'], 5, 'Incorrect slots set for test!')
+		self.assertEqual(pool.get_tags()[None], 5, 'Incorrect slots adjusted for general!')
+
+		pool.adjust('test', 1, use_general_slots=True)
+		self.assertEqual(pool.get_tags()['test'], 1, 'Incorrect slots set for test!')
+		self.assertEqual(pool.get_tags()[None], 9, 'Incorrect slots adjusted for general!')
+
+		self.assertEqual(pool.get_tags()['ignore'], 1, 'Ignored pool should not have been touched!')
+
+		self.assertEqual(pool._total, 11, msg='Incorrect total count was left after adjustments.')
+
+		with self.assertRaises(Exception, msg='Failed to raise Error on invalid pool size increase!'):
+			pool.adjust('test', 11, use_general_slots=True)
+
+	def test_stop(self):
+		""" Stop should correctly exit """
+		start = time.time()
+
+		self.pool.adjust('test', 1)
+		self.pool.adjust(None, 0)
+
+		self.pool.ingest([60, 60, 60], 'test', time.sleep, [])
+
+		self.pool.stop(block=True)
+
+		self.pool.join()
+
+		self.assertLess(time.time() - start, 15, 'Took longer than expected to run test - concurrency may be broken')
+
+	def test_iter(self):
+		self.pool.ingest([1, 2, 3, 4, 5, 6, 7, 8], 'test', fnc)
+		self.pool.callback(None)
+		count = 0
+		for r in self.pool:
+			count += r
+		self.assertEqual(count, 36, 'Did not get all results back from iterator!')
+
+
+def fnc(num):
+	return num
+
+
+def timeout():
+	time.sleep(60)
+	print('Timed out!')
+	os._exit(10000)
+
+
+timeout_thread = threading.Thread(target=timeout, daemon=True)
+timeout_thread.start()
 
 
 if __name__ == "__main__":

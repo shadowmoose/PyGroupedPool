@@ -5,7 +5,7 @@ import traceback
 
 
 class PyPool:
-	def __init__(self, limit=0, tags=None, callback=None, error_handler=None, iteration=True):
+	def __init__(self, limit=0, tags=None, callback=None, error_handler=None, iteration=False):
 		"""
 		Create a new Pool, and start the managing threads for it.
 
@@ -68,14 +68,13 @@ class PyPool:
 			try:
 				r[1].successful()  # Throws if not completed, otherwise ignore and indicate it has resolved.
 				return True
-			except:
+			except Exception:
 				return False
 		while not self._stop.is_set():
 			self._stop.wait(.01)
 			with self._pending_lock:
 				finished = filter(check, self._pending)
 				for f in finished:
-					self._pending.remove(f)
 					try:
 						val = f[1].get()
 						self._finish(val, f[0])
@@ -84,6 +83,8 @@ class PyPool:
 							self._error_handler(e)
 						else:
 							raise Exception('Unhandled exception from process call! Use on_error() to set a handler!')
+					finally:
+						self._pending.remove(f)
 
 	def _finish(self, res, tag):
 		self._sem(tag).release()  # Release one of the Semaphore for this tag.
@@ -100,12 +101,31 @@ class PyPool:
 		return res
 
 	def iter(self):
+		"""
+		Creates a generator for this Pool, which returns results from the running sub-processes in no specific order.
+		The generator exits once all running sub-processes return, if no Ingest threads are currently running.
+
+		:return: Iterable Generator of results.
+		"""
 		if not self._iteration:
 			raise Exception('Iteration is disabled on this Pool!')
-		while True:
+		brk = False
+		while not self._stop.is_set():
 			if self._cb:
 				raise Exception('Error: Cannot iterate while callback is activated on pool!')
-			yield self._results.get(block=True)
+			try:
+				yield self._results.get(block=True, timeout=.1)
+				brk = False
+			except Empty:
+				if self._stop.is_set():
+					break
+				with self._pending_lock:
+					if not len(self._pending):
+						with self._ingest_lock:
+							if not len(self._ingest_streams):
+								if brk:
+									break
+								brk = True
 
 	def put(self, tag, fnc, args=tuple()):
 		"""
@@ -119,13 +139,14 @@ class PyPool:
 		:return: a `multiprocessing.pool.AsyncResult` instance, in case you have use for it.
 		"""
 		sems = [self._sem(tag), self._sem(None)]
-		while any(sems):
+		while any(sems) and not self._stop.is_set():
 			for sem in sems:
 				if not sem:
 					continue
 				if sem.acquire(block=True, timeout=0.05):
 					return self._run(tag, fnc, args)
-		raise KeyError('No valid pool could be found for the given tag: %s' % tag)
+		if not self._stop.is_set():
+			raise KeyError('No valid pool could be found for the given tag: %s' % tag)
 
 	@property
 	def pending(self):
@@ -158,8 +179,8 @@ class PyPool:
 					dat['sem'].release()
 					dat['limit'] += 1
 					if use_general_slots:
-						self._tags[None]['sem'].acquire()
 						if self._tags[None]['limit'] > 0:
+							self._tags[None]['sem'].acquire()
 							self._tags[None]['limit'] -= 1
 						else:
 							raise IndexError('Unable to move the correct amount of slots from the General Pool.')
@@ -194,7 +215,8 @@ class PyPool:
 		Cleanly shut down this Pool. While everything here should shut down on its own when the main thread exits,
 		this method can be used instead to kill the Pool at-will.
 		
-		Calling this is destructive, and will immediately interrupt any active ingestor threads - as well as any result handling.
+		Calling this is destructive, and will immediately interrupt any active ingestor threads -
+		as well as any result handling.
 		Use the `join()` method before calling this if you want to wait for all processing to properly finish first. 
 		
 		:param block: If True, this call will block after sending the shutdown signal until all threads are cleaned up.
@@ -202,15 +224,15 @@ class PyPool:
 		self._stop.set()
 		with self._pending_lock:
 			self._pending.clear()
-		if block:
-			self.join()
+			if block:
+				self.join()
 		try:
 			while True:
 				self._results.get_nowait()  # Empty the result queue.
 		except Empty:
 			pass
 
-	def ingest(self, iterable, tag, fnc, args):
+	def ingest(self, iterable, tag, fnc, args=()):
 		"""
 		Non-blocking convenience method - this Iterates through the given Iterable, 
 		and calls `self.put()` with each element.
@@ -226,6 +248,7 @@ class PyPool:
 		:return: The Thread, already started, which handles adding the given values.
 		"""
 		_t = None
+
 		def ing():
 			for e in iterable:
 				if self._stop.is_set():
@@ -234,9 +257,9 @@ class PyPool:
 			with self._ingest_lock:
 				self._ingest_streams.remove(_t)
 		_t = Thread(daemon=True, target=ing)
-		_t.start()
 		with self._ingest_lock:
 			self._ingest_streams.append(_t)
+		_t.start()
 		return _t
 
 	def join(self):
@@ -248,6 +271,14 @@ class PyPool:
 			th.join()
 		while self.pending:
 			self._stop.wait(0.1)
+
+	def get_tags(self):
+		"""
+		Get a map of `tag: limit` for all tags tracked by this Pool.
+
+		:return: Map of tags and their limits.
+		"""
+		return {k: v['limit'] for k, v in self._tags.items()}
 
 	def __iter__(self):
 		return self.iter()

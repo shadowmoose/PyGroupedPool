@@ -13,6 +13,7 @@ class TestPool(unittest.TestCase):
 			'test': 1,
 			'ignore': 1
 		}, callback=lambda r: print('Returned:', r, ', Pending:', self.pool.pending))
+		self.count = 0
 
 	def test_async(self):
 		""" Concurrency should properly work """
@@ -63,12 +64,32 @@ class TestPool(unittest.TestCase):
 		self.assertLess(time.time() - start, 15, 'Took longer than expected to run test - concurrency may be broken')
 
 	def test_iter(self):
+		""" The iterator should work """
 		self.pool.ingest([1, 2, 3, 4, 5, 6, 7, 8], 'test', fnc)
 		self.pool.callback(None)
 		count = 0
 		for r in self.pool:
 			count += r
 		self.assertEqual(count, 36, 'Did not get all results back from iterator!')
+
+	def test_callback(self):
+		""" The callback method should work """
+		def cb(val):
+			self.count += val
+
+		def err(e):
+			self.count += 100
+
+		self.pool.callback(cb=cb)
+		self.pool.on_error(err)
+
+		for i in range(4):
+			self.pool.put('test', fnc, [i])
+		self.pool.put('test', fnc, [])  # Trigger an error, which will be caught and increment counter by 100.
+
+		self.pool.join()
+
+		self.assertEqual(self.count, 106, 'Callback was not triggered enough times!')
 
 
 def fnc(num):

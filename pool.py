@@ -139,6 +139,7 @@ class PyPool:
 		:return: a `multiprocessing.pool.AsyncResult` instance, in case you have use for it.
 		"""
 		sems = [self._sem(tag), self._sem(None)]
+		args = tuple(args)
 		while any(sems) and not self._stop.is_set():
 			for sem in sems:
 				if not sem:

@@ -220,7 +220,7 @@ class PyPool:
 		
 		Calling this is destructive, and will immediately interrupt any active ingestor threads -
 		as well as any result handling.
-		Use the `join()` method before calling this if you want to wait for all processing to properly finish first. 
+		Use the `join()` method before calling this if you want to wait for all processing to properly finish first.
 		"""
 		self._stop.set()
 

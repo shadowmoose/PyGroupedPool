@@ -2,6 +2,7 @@ import multiprocessing
 from threading import Thread
 from queue import Empty
 import traceback
+import threading
 
 
 class PyPool:
@@ -20,9 +21,9 @@ class PyPool:
 		self._iteration = iteration
 		self._cb = callback
 		self._tag_lock = multiprocessing.RLock()
-		self._pending_lock = multiprocessing.RLock()
-		self._ingest_lock = multiprocessing.RLock()
-		self._stop = multiprocessing.Event()
+		self._pending_lock = threading.RLock()
+		self._ingest_lock = threading.RLock()
+		self._stop = threading.Event()
 		self._total = 0
 		self._pool = None
 		self._pending = []
@@ -88,11 +89,12 @@ class PyPool:
 
 	def _finish(self, res, tag):
 		self._sem(tag).release()  # Release one of the Semaphore for this tag.
+		if self._stop.is_set():
+			return
 		if self._cb:
 			self._cb(res)
-		else:
-			if self._iteration:
-				self._results.put(res)
+		elif self._iteration:
+			self._results.put(res)
 
 	def _run(self, tag, fnc, args):
 		res = self._pool.apply_async(fnc, args=args)  # This method supports a callback, but it doesn't run on error.
@@ -211,7 +213,7 @@ class PyPool:
 		"""
 		self._error_handler = error_handler
 
-	def stop(self, block=False):
+	def stop(self):
 		"""
 		Cleanly shut down this Pool. While everything here should shut down on its own when the main thread exits,
 		this method can be used instead to kill the Pool at-will.
@@ -219,26 +221,8 @@ class PyPool:
 		Calling this is destructive, and will immediately interrupt any active ingestor threads -
 		as well as any result handling.
 		Use the `join()` method before calling this if you want to wait for all processing to properly finish first. 
-		
-		:param block: If True, this call will block after sending the shutdown signal until all threads are cleaned up.
 		"""
-		print('Shutting down...')
 		self._stop.set()
-		with self._pending_lock:
-			print('Got lock.')
-			self._pending.clear()
-			print('Cleared.')
-			if block:
-				print('Joining...')
-				self.join()
-				print('Joined.')
-		try:
-			print('Emptying queue...')
-			while True:
-				self._results.get_nowait()  # Empty the result queue.
-		except Empty:
-			print('Queue empty.')
-			pass
 
 	def ingest(self, iterable, tag, fnc, args=()):
 		"""

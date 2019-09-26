@@ -58,6 +58,7 @@ class TestPool(unittest.TestCase):
 		self.pool.ingest([60, 60, 60], 'test', time.sleep, [])
 
 		self.pool.stop(block=True)
+		print('Stop completed.')
 
 		self.pool.join()
 

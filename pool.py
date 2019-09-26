@@ -222,15 +222,22 @@ class PyPool:
 		
 		:param block: If True, this call will block after sending the shutdown signal until all threads are cleaned up.
 		"""
+		print('Shutting down...')
 		self._stop.set()
 		with self._pending_lock:
+			print('Got lock.')
 			self._pending.clear()
+			print('Cleared.')
 			if block:
+				print('Joining...')
 				self.join()
+				print('Joined.')
 		try:
+			print('Emptying queue...')
 			while True:
 				self._results.get_nowait()  # Empty the result queue.
 		except Empty:
+			print('Queue empty.')
 			pass
 
 	def ingest(self, iterable, tag, fnc, args=()):

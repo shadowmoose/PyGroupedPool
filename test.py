@@ -46,7 +46,7 @@ class TestPool(unittest.TestCase):
 		self.assertEqual(pool._total, 11, msg='Incorrect total count was left after adjustments.')
 
 		print(pool)
-		
+
 		with self.assertRaises(Exception, msg='Failed to raise Error on invalid pool size increase!'):
 			pool.adjust('test', 11, use_general_slots=True)
 
@@ -95,23 +95,21 @@ class TestPool(unittest.TestCase):
 	def test_single_callback(self):
 		""" Individual tasks should support custom callbacks """
 		def cb(val):
-			print('cb called')
 			self.count += val
 
 		def err(e):
-			print('err called', e)
 			self.count += 100
 
 		self.pool.callback(cb=None)  # Clear any built-in handlers for custom callback test.
 		self.pool.on_error(None)
 
-		for i in range(4):
+		for i in range(3):
 			self.pool.put('test', fnc, [i], callback=cb)
 		self.pool.put('test', fnc, [], error=err)  # Trigger an error, which will be caught and increment counter by 100
 
 		self.pool.join()
 
-		self.assertEqual(self.count, 106, 'Custom callback/error was not triggered enough times!')
+		self.assertEqual(self.count, 103, 'Custom callback/error was not triggered enough times!')
 
 
 def fnc(num):

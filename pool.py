@@ -76,7 +76,6 @@ class PyPool:
 			with self._pending_lock:
 				finished = filter(check, self._pending)
 				for f in finished:
-					print(f)
 					try:
 						val = f['res'].get()
 						self._finish(val, f['tag'], f['callback'])
@@ -231,7 +230,7 @@ class PyPool:
 		"""
 		self._stop.set()
 
-	def ingest(self, iterable, tag, fnc, args=()):
+	def ingest(self, iterable, tag, fnc, args=(), callback=None, error=None):
 		"""
 		Non-blocking convenience method - this Iterates through the given Iterable, 
 		and calls `self.put()` with each element.
@@ -244,6 +243,8 @@ class PyPool:
 		:param tag: The "group" this subprocess should run as. Used for limiting concurrent count based off tags.
 		:param fnc: The function to run.
 		:param args: The arguments to provide to this function. Each item in the iterable will be prepended to these.
+		:param callback: If provided, use this function as the callback for each result.
+		:param error: If provided, use this function as the callback to handle each error from the subprocesses.
 		:return: The Thread, already started, which handles adding the given values.
 		"""
 		_t = None
@@ -252,7 +253,7 @@ class PyPool:
 			for e in iterable:
 				if self._stop.is_set():
 					break
-				self.put(tag, fnc, (e, *args))
+				self.put(tag, fnc, (e, *args), callback, error)
 			with self._ingest_lock:
 				self._ingest_streams.remove(_t)
 		_t = Thread(daemon=True, target=ing)

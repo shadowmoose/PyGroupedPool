@@ -41,7 +41,9 @@ pool.ingest([1, 2, 4, 5, 'etc...'], 'tag_group', function_to_run, ['extra_func_a
 If you don't need to bulk-add, or you need more control over the functionality, you can also add sub-processes individually in a block fashion:
 
 ```python
-result = pool.put('tag_name', function_name, ('arg1', 'arg2', 'etc...'))  # A result object is returned, just in case you want to handle it without a callback.
+# You can also pass custom result/error callbacks to override the defaults:
+result = pool.put('tag_name', function_name, ('arg1', 'arg2', 'etc...'), callback=print, error=print)  
+# A result object is always returned, just in case you want to handle it manually.
 ```
 
 

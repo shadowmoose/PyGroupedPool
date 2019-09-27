@@ -80,7 +80,7 @@ pool = PyPool(tags={
 pool.ingest([5, 5, 5, 5, 5], 'test', time.sleep, [])  # Asynchronously run a subprocess for each value, using util function.
 
 for v in pool:
-    print(v)  # Prints all data as it becomes available. Add extra logic to exit, or this will wait for any new data.
+    print(v)  # Prints all data as it becomes available. Exits once no further data is incoming.
 ```
 
 ## More documentation:

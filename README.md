@@ -74,11 +74,8 @@ pool.adjust('test', 14, True)  # The 'test' group now has 14 reserved slots for 
 If you'd prefer to use an iterator instead of an async callback, simply create a Pool without a data callback:
 ```python
 pool = PyPool(tags={
-    'test': 1,
-    'ignored_pool': 5
-}, on_error=print)
-
-pool.adjust(None, 10)  # Adjust the "generic" pool size to fit all the upcoming threads, to run them concurrently.
+    'test': 1
+}, iteration=True)
 
 pool.ingest([5, 5, 5, 5, 5], 'test', time.sleep, [])  # Asynchronously run a subprocess for each value, using util function.
 

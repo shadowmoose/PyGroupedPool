@@ -6,9 +6,9 @@ This project is a wrapper around the Python "Pool" implementation for multiproce
 
 It extends the basic functionality to add a few notable changes:
 
-+ The Pool object can be provided with "tags", each of which can guarantee their own amount of dedicated pool slots.
-+ A generic tag can also be provided, to allow all tag groups to burst above their base limits as-needed.
-+ Group sizes can be adjusted live while running, to allow your program to reallocate subprocesses in realtime.
++ The Pool object supports group-based tags, each of which can guarantee their own amount of dedicated process 'slots'.
++ A generic tag ('None') can also be provided, to allow all tagged groups to burst above their base limits as-needed.
++ Group sizes can be adjusted live while running, to allow your program to reallocate subprocesses priority in realtime.
 + The logic to launch infinite sub-processes has been streamlined to prevent excessive memory usage.
 + The Pool supports data & error callbacks, or a simple generator to iterate the results as they're returned.
 
@@ -44,6 +44,30 @@ If you don't need to bulk-add, or you need more control over the functionality, 
 result = pool.put('tag_name', function_name, ('arg1', 'arg2', 'etc...'))  # A result object is returned, just in case you want to handle it without a callback.
 ```
 
+
+## Resizing Pool Group Capacity
+If needed, each group can be resized at-will, to allow for dynamic shifting of priorities.
+Resizing will play nicely with running threads, only removing and adding capacity as it becomes available.
+
+By default, resizing creates or destroys new subprocess slots. 
+If you specify the 'use_general_slots' flag, the change in slots will instead be added or removed from the general purpose ('None tag') group.
+```python
+pool = PyPool(tags={
+    'test': 1,
+    'ignored_pool': 5
+}, on_error=print)
+
+
+pool.adjust('test', 10)  # The group 'test' now supports up to 10 concurrent processes. 9 slots have been created.
+
+# You may also move slots to/from the general pool.
+# After this call, 'ignored_pool' group will only have 1 process slot available -
+#   but the generic group (None tag) will gain the removed 4 process slots:
+pool.adjust('ignored_pool', 1, True)
+
+pool.adjust('test', 14, True)  # The 'test' group now has 14 reserved slots for processes, and the general pool has 0.
+```
+
 ## Iterator Example:
 If you'd prefer to use an iterator instead of an async callback, simply create a Pool without a data callback:
 ```python
@@ -52,8 +76,6 @@ pool = PyPool(tags={
     'ignored_pool': 5
 }, on_error=print)
 
-print(pool)  # Display the current Pool config.
-
 pool.adjust(None, 10)  # Adjust the "generic" pool size to fit all the upcoming threads, to run them concurrently.
 
 pool.ingest([5, 5, 5, 5, 5], 'test', time.sleep, [])  # Asynchronously run a subprocess for each value, using util function.
@@ -61,5 +83,6 @@ pool.ingest([5, 5, 5, 5, 5], 'test', time.sleep, [])  # Asynchronously run a sub
 for v in pool:
     print(v)  # Prints all data as it becomes available. Add extra logic to exit, or this will wait for any new data.
 ```
+
 ## More documentation:
-There's more functionality, such as `join` or `adjust`, and the easiest way to learn about them is to [read the docs](./pool.py) for each method.
+There's more functionality, such as `join` or `stop`, and the easiest way to learn about them is to [read the docs](./pool.py) for each method.

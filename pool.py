@@ -67,7 +67,7 @@ class PyPool:
 		def check(r):
 			# noinspection PyBroadException
 			try:
-				r[1].successful()  # Throws if not completed, otherwise ignore and indicate it has resolved.
+				r['res'].successful()  # Throws if not completed, otherwise ignore and indicate it has resolved.
 				return True
 			except Exception:
 				return False
@@ -76,30 +76,35 @@ class PyPool:
 			with self._pending_lock:
 				finished = filter(check, self._pending)
 				for f in finished:
+					print(f)
 					try:
-						val = f[1].get()
-						self._finish(val, f[0])
+						val = f['res'].get()
+						self._finish(val, f['tag'], f['callback'])
 					except Exception as e:
-						if self._error_handler:
+						if f['error']:
+							f['error'](e)
+						elif self._error_handler:
 							self._error_handler(e)
 						else:
 							raise Exception('Unhandled exception from process call! Use on_error() to set a handler!')
 					finally:
 						self._pending.remove(f)
 
-	def _finish(self, res, tag):
+	def _finish(self, res, tag, callback):
 		self._sem(tag).release()  # Release one of the Semaphore for this tag.
 		if self._stop.is_set():
 			return
-		if self._cb:
+		if callback:
+			callback(res)
+		elif self._cb:
 			self._cb(res)
 		elif self._iteration:
 			self._results.put(res)
 
-	def _run(self, tag, fnc, args):
+	def _run(self, tag, fnc, args, callback=None, error=None):
 		res = self._pool.apply_async(fnc, args=args)  # This method supports a callback, but it doesn't run on error.
 		with self._pending_lock:
-			self._pending.append([tag, res])
+			self._pending.append({'tag': tag, 'res': res, 'callback': callback, 'error': error})
 		return res
 
 	def iter(self):
@@ -129,7 +134,7 @@ class PyPool:
 									break
 								brk = True
 
-	def put(self, tag, fnc, args=tuple()):
+	def put(self, tag, fnc, args=tuple(), callback=None, error=None):
 		"""
 		Launch the given function in a new Process. Requires a tag, which it uses to determine concurrency limits.
 		
@@ -138,6 +143,8 @@ class PyPool:
 		:param tag: The "group" this subprocess should run as. Used for limiting concurrent count based off tags.
 		:param fnc: The function to run.
 		:param args: The arguments to provide to this function. Tuple.
+		:param callback: If provided, use this function as the callback for this result.
+		:param error: If provided, use this function as the callback to handle errors from the subprocess.
 		:return: a `multiprocessing.pool.AsyncResult` instance, in case you have use for it.
 		"""
 		sems = [self._sem(tag), self._sem(None)]
@@ -147,7 +154,7 @@ class PyPool:
 				if not sem:
 					continue
 				if sem.acquire(block=True, timeout=0.05):
-					return self._run(tag, fnc, args)
+					return self._run(tag, fnc, args, callback, error)
 		if not self._stop.is_set():
 			raise KeyError('No valid pool could be found for the given tag: %s' % tag)
 

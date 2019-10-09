@@ -1,4 +1,4 @@
-# Grouped Pool [![badge](https://action-badges.now.sh/shadowmoose/PyGroupedPool)](https://github.com/shadowmoose/PyGroupedPool/actions)[![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
+# Grouped Pool [![badge](https://github.com/shadowmoose/PyGroupedPool/workflows/Pytest/badge.svg)](https://github.com/shadowmoose/PyGroupedPool/actions)[![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
 
 *This is currently a proof-of-concept. No release currently exists.*
 

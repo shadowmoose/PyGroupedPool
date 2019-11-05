@@ -1,4 +1,7 @@
-# Grouped Pool [![badge](https://github.com/shadowmoose/PyGroupedPool/workflows/Pytest/badge.svg)](https://github.com/shadowmoose/PyGroupedPool/actions)[![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
+# Grouped Pool 
+[![badge](https://github.com/shadowmoose/PyGroupedPool/workflows/Pytest/badge.svg)](https://github.com/shadowmoose/PyGroupedPool/actions)
+[![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
+![lines of code](https://prod.my-api.link/gh/lines?repo=PyGroupedPool&exts=py)
 
 *This is currently a proof-of-concept. No release currently exists.*
 
@@ -6,11 +9,13 @@ This project is a wrapper around the Python "Pool" implementation for multiproce
 
 It extends the basic functionality to add a few notable changes:
 
-+ The Pool object supports group-based tags, each of which can guarantee their own amount of dedicated process 'slots'.
++ The Pool object supports group-based tags, each of which guarantees their own amount of dedicated process 'slots'.
 + A generic tag ('None') can also be provided, to allow all tagged groups to burst above their base limits as-needed.
 + Group sizes can be adjusted live while running, to allow your program to reallocate subprocesses priority in realtime.
 + The logic to launch infinite sub-processes has been streamlined to prevent excessive memory usage.
 + The Pool supports data & error callbacks, or a simple generator to iterate the results as they're returned.
+
+---
 
 ## Example:
 

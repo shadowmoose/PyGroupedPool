@@ -1,7 +1,7 @@
 # Grouped Pool 
 [![badge](https://github.com/shadowmoose/PyGroupedPool/workflows/Pytest/badge.svg)](https://github.com/shadowmoose/PyGroupedPool/actions)
 [![codecov](https://codecov.io/gh/shadowmoose/PyGroupedPool/branch/master/graph/badge.svg)](https://codecov.io/gh/shadowmoose/PyGroupedPool)
-![lines of code](https://prod.my-api.link/gh/lines?repo=PyGroupedPool&exts=py)
+![lines of code](https://my-api.link/gh/lines?repo=PyGroupedPool&exts=py)
 
 *This is currently a proof-of-concept. No release currently exists.*
 
